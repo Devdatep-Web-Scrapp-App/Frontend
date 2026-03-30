@@ -1,20 +1,43 @@
 import { useState, useEffect } from 'react'
 import { settingsAPI, scraperAPI, BASE } from '../services/api.js'
 
-
-const getToken = () => localStorage.getItem('sp_token')
-const authFetch = (path, opts = {}) => fetch(`${BASE}${path}`, { ...opts, headers: { 'Authorization': `Bearer ${getToken()}`, 'Content-Type': 'application/json', ...(opts.headers || {}) } })
+const getToken  = () => localStorage.getItem('sp_token')
+const authFetch = (path, opts = {}) => fetch(`${BASE}${path}`, {
+    ...opts,
+    headers: {
+        'Authorization': `Bearer ${getToken()}`,
+        'Content-Type': 'application/json',
+        ...(opts.headers || {}),
+    },
+})
 
 const SECTIONS = [
-    { id: 'general',   label: 'General',            icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg> },
-    { id: 'accounts',  label: 'Cuentas conectadas', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg> },
-    { id: 'sync',      label: 'Sync automático',    icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg> },
+    {
+        id: 'general', label: 'General',
+        icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>,
+    },
+    {
+        id: 'accounts', label: 'Cuentas conectadas',
+        icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>,
+    },
+    {
+        id: 'sync', label: 'Sync automático',
+        icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>,
+    },
 ]
+
+const PLATFORM_META = {
+    instagram: {
+        label: 'Instagram', color: '#f72585', dim: 'rgba(247,37,133,0.1)',
+        icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/></svg>,
+    },
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
 
 function Toggle({ checked, onChange }) {
     return (
-        <button role="switch" aria-checked={checked} onClick={() => onChange(!checked)}
-                style={{ width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer', background: checked ? 'var(--accent-teal)' : 'var(--border)', position: 'relative', transition: 'background 0.2s', flexShrink: 0 }}>
+        <button role="switch" aria-checked={checked} onClick={() => onChange(!checked)} style={{ width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer', background: checked ? 'var(--accent-teal)' : 'var(--border)', position: 'relative', transition: 'background 0.2s', flexShrink: 0 }}>
             <span style={{ position: 'absolute', top: 3, left: checked ? 23 : 3, width: 18, height: 18, borderRadius: '50%', background: 'white', transition: 'left 0.2s', boxShadow: '0 1px 4px rgba(0,0,0,0.2)' }} />
         </button>
     )
@@ -41,7 +64,8 @@ function FieldRow({ label, hint, children }) {
     )
 }
 
-// ---------- General ----------
+// ── General ──────────────────────────────────────────────────────────────────
+
 function GeneralSection() {
     const [name, setName]           = useState('')
     const [email, setEmail]         = useState('')
@@ -72,16 +96,23 @@ function GeneralSection() {
     async function savePassword() {
         if (!currentPass || !newPass) return
         setLoading(true)
-        try { await settingsAPI.changePassword(currentPass, newPass); flash(true, 'Contraseña actualizada.'); setCurrentPass(''); setNewPass('') }
+        try {
+            await settingsAPI.changePassword(currentPass, newPass)
+            flash(true, 'Contraseña actualizada.')
+            setCurrentPass(''); setNewPass('')
+        }
         catch (e) { flash(false, e.message) }
         finally { setLoading(false) }
     }
 
-    const initials = name ? name.split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase() : email.slice(0,2).toUpperCase()
+    const initials = name
+        ? name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
+        : email.slice(0, 2).toUpperCase()
 
     return (
         <div className="set-panel fade-in">
             <SectionHeader title="General" subtitle="Administra tu información personal y datos de cuenta." />
+
             <div className="set-card">
                 <div className="set-avatar-row">
                     <div className="set-avatar">{initials}</div>
@@ -92,6 +123,7 @@ function GeneralSection() {
                     </div>
                 </div>
             </div>
+
             <div className="set-card">
                 <FieldRow label="Nombre completo" hint="Se muestra en la plataforma.">
                     <div style={{ display: 'flex', gap: 8 }}>
@@ -104,6 +136,7 @@ function GeneralSection() {
                     <input className="set-input" value={email} disabled style={{ opacity: 0.6 }} />
                 </FieldRow>
             </div>
+
             <div className="set-card">
                 <FieldRow label="Contraseña actual" hint="">
                     <input className="set-input" type="password" value={currentPass} onChange={e => setCurrentPass(e.target.value)} placeholder="••••••••" />
@@ -113,39 +146,48 @@ function GeneralSection() {
                     <input className="set-input" type="password" value={newPass} onChange={e => setNewPass(e.target.value)} placeholder="••••••••" />
                 </FieldRow>
             </div>
+
             <div className="set-footer-row">
                 {msg
                     ? <span style={{ fontSize: 12, color: msg.ok ? 'var(--accent-teal)' : '#f87171' }}>{msg.text}</span>
                     : <span />
                 }
-                <button className="set-btn-primary" onClick={savePassword} disabled={loading || !currentPass || !newPass}>Cambiar contraseña</button>
+                <button className="set-btn-primary" onClick={savePassword} disabled={loading || !currentPass || !newPass}>
+                    Cambiar contraseña
+                </button>
             </div>
         </div>
     )
 }
 
-// ---------- Cuentas conectadas ----------
-const PLATFORM_META = {
-    instagram: {
-        label: 'Instagram', color: '#f72585', dim: 'rgba(247,37,133,0.1)',
-        icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/></svg>,
-    },
-}
+// ── Connect Modal ─────────────────────────────────────────────────────────────
 
 function ConnectModal({ platform, onClose, onSave }) {
     const [username, setUsername] = useState('')
+    const [password, setPassword] = useState('')
+    const [showPass, setShowPass] = useState(false)
     const [loading, setLoading]  = useState(false)
     const [error, setError]      = useState('')
-    const meta = PLATFORM_META[platform]
+    const meta         = PLATFORM_META[platform]
+    const needsPassword = platform === 'instagram'
 
     async function handleSave() {
         if (!username.trim()) { setError('Ingresa un username.'); return }
+        if (needsPassword && !password.trim()) { setError('Ingresa tu contraseña.'); return }
         setLoading(true)
         try {
-            if (platform === 'instagram') await settingsAPI.connectInstagram(username.trim())
-            onSave(username.trim()); onClose()
-        } catch (e) { setError(e.message) }
-        finally { setLoading(false) }
+            if (platform === 'instagram') {
+                await settingsAPI.connectInstagram(username.trim(), password.trim())
+            } else {
+                await settingsAPI.connectTiktok(username.trim())
+            }
+            onSave(username.trim())
+            onClose()
+        } catch (e) {
+            setError(e.message)
+        } finally {
+            setLoading(false)
+        }
     }
 
     return (
@@ -153,27 +195,75 @@ function ConnectModal({ platform, onClose, onSave }) {
             <div className="modal-box" onClick={e => e.stopPropagation()}>
                 <div className="modal-header">
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <div style={{ width: 32, height: 32, borderRadius: 8, background: meta.dim, color: meta.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{meta.icon}</div>
+                        <div style={{ width: 32, height: 32, borderRadius: 8, background: meta.dim, color: meta.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            {meta.icon}
+                        </div>
                         <span style={{ fontWeight: 600, fontSize: 15 }}>Conectar {meta.label}</span>
                     </div>
                     <button className="modal-close" onClick={onClose}>✕</button>
                 </div>
+
                 <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 16 }}>
-                    Ingresa el username de la cuenta que quieres rastrear. El login se hará manualmente mediante Selenium.
+                    {needsPassword
+                        ? 'Ingresa tus credenciales de Instagram. La contraseña se guarda encriptada y solo se usa para autenticación.'
+                        : 'Ingresa el username de TikTok que quieres rastrear.'
+                    }
                 </p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    <label style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Username (sin @)</label>
-                    <input className="set-input" style={{ width: '100%' }} value={username} onChange={e => { setUsername(e.target.value); setError('') }} placeholder="mi_cuenta" autoFocus />
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        <label style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Username (sin @)</label>
+                        <input
+                            className="set-input"
+                            style={{ width: '100%' }}
+                            value={username}
+                            onChange={e => { setUsername(e.target.value); setError('') }}
+                            placeholder="mi_cuenta"
+                            autoFocus
+                        />
+                    </div>
+
+                    {needsPassword && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            <label style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Contraseña</label>
+                            <div style={{ position: 'relative' }}>
+                                <input
+                                    className="set-input"
+                                    style={{ width: '100%', paddingRight: 40 }}
+                                    type={showPass ? 'text' : 'password'}
+                                    value={password}
+                                    onChange={e => { setPassword(e.target.value); setError('') }}
+                                    placeholder="••••••••"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPass(v => !v)}
+                                    style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 0, display: 'flex', alignItems: 'center' }}
+                                >
+                                    {showPass
+                                        ? <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                                        : <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                    }
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
                     {error && <span style={{ fontSize: 12, color: '#f87171' }}>{error}</span>}
                 </div>
+
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 20 }}>
                     <button className="set-btn-ghost" onClick={onClose}>Cancelar</button>
-                    <button className="set-btn-primary" onClick={handleSave} disabled={loading}>{loading ? 'Guardando...' : 'Guardar'}</button>
+                    <button className="set-btn-primary" onClick={handleSave} disabled={loading}>
+                        {loading ? 'Guardando...' : 'Guardar'}
+                    </button>
                 </div>
             </div>
         </div>
     )
 }
+
+// ── Accounts ──────────────────────────────────────────────────────────────────
 
 function AccountsSection() {
     const [igUsername, setIgUsername] = useState(null)
@@ -182,7 +272,10 @@ function AccountsSection() {
     const [syncMsg, setSyncMsg]       = useState(null)
 
     useEffect(() => {
-        authFetch('/auth/me').then(r => r.json()).then(user => { if (user.ig_username) setIgUsername(user.ig_username) }).catch(() => {})
+        authFetch('/auth/me')
+            .then(r => r.json())
+            .then(user => { if (user.ig_username) setIgUsername(user.ig_username) })
+            .catch(() => {})
     }, [])
 
     async function handleDisconnect() {
@@ -191,35 +284,55 @@ function AccountsSection() {
     }
 
     async function handleSetup() {
-        setSyncMsg('Abriendo navegador para setup de sesión...')
-        try { await scraperAPI.setupInstagram(); setSyncMsg('Setup completado.') }
-        catch (e) { setSyncMsg(`Error: ${e.message}`) }
+        setSyncMsg('Iniciando sesión con Instagram...')
+        try {
+            const res = await scraperAPI.setupInstagram()
+            setSyncMsg(res.message || 'Setup completado.')
+        } catch (e) {
+            setSyncMsg(`Error: ${e.message}`)
+        }
         setTimeout(() => setSyncMsg(null), 5000)
     }
 
     async function handleSync() {
-        setSyncStatus('running'); setSyncMsg('Scraping iniciado, puede tardar varios minutos...')
+        setSyncStatus('running')
+        setSyncMsg('Scraping iniciado, puede tardar varios minutos...')
         try {
             const res = await scraperAPI.runInstagram()
             setSyncMsg(`Tarea iniciada. ID: ${res.task_id}`)
+
             const poll = setInterval(async () => {
                 try {
                     const status = await scraperAPI.statusInstagram()
-                    if (status.status === 'SUCCESS') { setSyncMsg(`Completado: ${status.result}`); setSyncStatus('idle'); clearInterval(poll) }
-                    else if (status.status === 'FAILURE') { setSyncMsg(`Error: ${status.result}`); setSyncStatus('idle'); clearInterval(poll) }
+                    if (status.status === 'SUCCESS') {
+                        setSyncMsg(`Completado: ${status.result}`)
+                        setSyncStatus('idle')
+                        clearInterval(poll)
+                    } else if (status.status === 'FAILURE') {
+                        setSyncMsg(`Error: ${status.result}`)
+                        setSyncStatus('idle')
+                        clearInterval(poll)
+                    }
                 } catch {}
             }, 5000)
-        } catch (e) { setSyncMsg(`Error: ${e.message}`); setSyncStatus('idle') }
+        } catch (e) {
+            setSyncMsg(`Error: ${e.message}`)
+            setSyncStatus('idle')
+        }
     }
 
     return (
         <div className="set-panel fade-in">
             <SectionHeader title="Cuentas conectadas" subtitle="Administra las cuentas de redes sociales que rastrea SocialPulse." />
+
             {syncMsg && <div className="set-msg-banner">{syncMsg}</div>}
+
             <div className="set-card" style={{ padding: 0, overflow: 'hidden' }}>
                 <div className="set-account-card">
                     <div className="set-account-left">
-                        <div className="set-account-icon" style={{ background: PLATFORM_META.instagram.dim, color: PLATFORM_META.instagram.color }}>{PLATFORM_META.instagram.icon}</div>
+                        <div className="set-account-icon" style={{ background: PLATFORM_META.instagram.dim, color: PLATFORM_META.instagram.color }}>
+                            {PLATFORM_META.instagram.icon}
+                        </div>
                         <div>
                             <div className="set-account-name">Instagram</div>
                             {igUsername
@@ -232,7 +345,9 @@ function AccountsSection() {
                         {igUsername && <span className="set-dot-active" />}
                         {igUsername ? <>
                             <button className="set-btn-ghost" onClick={handleSetup}>Setup sesión</button>
-                            <button className="set-btn-ghost" onClick={handleSync} disabled={syncStatus === 'running'}>{syncStatus === 'running' ? 'Scraping...' : 'Sync ahora'}</button>
+                            <button className="set-btn-ghost" onClick={handleSync} disabled={syncStatus === 'running'}>
+                                {syncStatus === 'running' ? 'Scraping...' : 'Sync ahora'}
+                            </button>
                             <button className="set-btn-danger" onClick={handleDisconnect}>Desconectar</button>
                         </> : (
                             <button className="set-btn-primary" onClick={() => setShowModal(true)}>+ Conectar</button>
@@ -240,12 +355,20 @@ function AccountsSection() {
                     </div>
                 </div>
             </div>
-            {showModal && <ConnectModal platform="instagram" onClose={() => setShowModal(false)} onSave={u => setIgUsername(u)} />}
+
+            {showModal && (
+                <ConnectModal
+                    platform="instagram"
+                    onClose={() => setShowModal(false)}
+                    onSave={u => setIgUsername(u)}
+                />
+            )}
         </div>
     )
 }
 
-// ---------- Sync automático ----------
+// ── Sync ──────────────────────────────────────────────────────────────────────
+
 function SyncSection() {
     const [hour, setHour]     = useState(8)
     const [minute, setMinute] = useState(0)
@@ -253,13 +376,19 @@ function SyncSection() {
     const [loading, setLoading] = useState(false)
 
     useEffect(() => {
-        authFetch('/sync/config').then(r => r.json()).then(data => { setHour(data.sync_hour); setMinute(data.sync_minute) }).catch(() => {})
+        authFetch('/sync/config')
+            .then(r => r.json())
+            .then(data => { setHour(data.sync_hour); setMinute(data.sync_minute) })
+            .catch(() => {})
     }, [])
 
     async function save() {
         setLoading(true)
         try {
-            await authFetch('/sync/config', { method: 'PUT', body: JSON.stringify({ sync_hour: hour, sync_minute: minute }) })
+            await authFetch('/sync/config', {
+                method: 'PUT',
+                body: JSON.stringify({ sync_hour: hour, sync_minute: minute }),
+            })
             setMsg({ ok: true, text: 'Horario guardado correctamente.' })
         } catch (e) {
             setMsg({ ok: false, text: e.message })
@@ -279,32 +408,16 @@ function SyncSection() {
             <div className="set-card">
                 <FieldRow label="Hora del sync diario" hint="El sistema ejecutará el scraping de Instagram todos los días a esta hora (hora de Lima, Perú).">
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <select
-                            className="set-input"
-                            style={{ width: 90 }}
-                            value={hour}
-                            onChange={e => setHour(Number(e.target.value))}
-                        >
-                            {hours.map(h => (
-                                <option key={h} value={h}>{pad(h)}:00</option>
-                            ))}
+                        <select className="set-input" style={{ width: 90 }} value={hour} onChange={e => setHour(Number(e.target.value))}>
+                            {hours.map(h => <option key={h} value={h}>{pad(h)}:00</option>)}
                         </select>
                         <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>:</span>
-                        <select
-                            className="set-input"
-                            style={{ width: 80 }}
-                            value={minute}
-                            onChange={e => setMinute(Number(e.target.value))}
-                        >
-                            {[0, 15, 30, 45].map(m => (
-                                <option key={m} value={m}>{pad(m)}</option>
-                            ))}
+                        <select className="set-input" style={{ width: 80 }} value={minute} onChange={e => setMinute(Number(e.target.value))}>
+                            {[0, 15, 30, 45].map(m => <option key={m} value={m}>{pad(m)}</option>)}
                         </select>
                     </div>
                 </FieldRow>
-
                 <div className="set-divider" />
-
                 <div className="sync-preview">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                     El próximo sync se ejecutará a las <strong>{pad(hour)}:{pad(minute)}</strong> hora de Lima.
@@ -324,7 +437,8 @@ function SyncSection() {
     )
 }
 
-// ---------- Root ----------
+// ── Root ──────────────────────────────────────────────────────────────────────
+
 export default function Settings() {
     const [active, setActive] = useState('general')
 
@@ -406,7 +520,16 @@ export default function Settings() {
         .modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
         .modal-close { background: none; border: none; font-size: 16px; color: var(--text-muted); cursor: pointer; padding: 4px; }
         .modal-close:hover { color: var(--text-primary); }
-        @media (max-width: 800px) { .set-root { padding: 16px; } .set-layout { flex-direction: column; } .set-sidebar { width: 100%; flex-direction: row; flex-wrap: wrap; } .set-nav-item { width: auto; flex: 1; justify-content: center; } .set-input { width: 160px; } .set-field-row { flex-direction: column; align-items: flex-start; gap: 8px; } .set-field-control { width: 100%; } .set-input { width: 100%; } }
+        @media (max-width: 800px) {
+          .set-root { padding: 16px; }
+          .set-layout { flex-direction: column; }
+          .set-sidebar { width: 100%; flex-direction: row; flex-wrap: wrap; }
+          .set-nav-item { width: auto; flex: 1; justify-content: center; }
+          .set-input { width: 160px; }
+          .set-field-row { flex-direction: column; align-items: flex-start; gap: 8px; }
+          .set-field-control { width: 100%; }
+          .set-input { width: 100%; }
+        }
       `}</style>
         </div>
     )
