@@ -3,7 +3,7 @@ import { format, subDays } from 'date-fns'
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts'
 import { TrendingUp, BarChart2 } from 'lucide-react'
 import { Card, DateRangePicker } from '../components/ui/index.jsx'
-import { statsAPI } from '../services/api.js'
+import { statsAPI, BASE } from '../services/api.js'
 
 const shortDate = d => {
     const [, m, day] = d.split('-')
@@ -80,7 +80,7 @@ export default function Historial() {
         const token = localStorage.getItem('sp_token')
         if (!token) return
 
-        fetch('http://localhost:8000/auth/me', {
+        fetch(`${BASE}/auth/me`, {
             headers: { 'Authorization': `Bearer ${token}` }
         })
             .then(r => r.json())
