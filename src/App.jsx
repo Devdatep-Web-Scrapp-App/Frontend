@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import Sidebar from './components/layout/Sidebar.jsx'
+import Sidebar from './components/layout/sidebar.jsx'
 import Dashboard from './pages/Dashboard.jsx'
 import Historial from './pages/Historial.jsx'
 import Login from './pages/Login.jsx'
