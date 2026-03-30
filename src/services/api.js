@@ -48,18 +48,21 @@ export const authAPI = {
 
 // Settings
 export const settingsAPI = {
-    connectInstagram: (username) => request('PUT', '/settings/connect-instagram', { username }),
-    disconnectInstagram: ()         => request('PUT', '/settings/disconnect-instagram'),
-    connectTiktok:    (username) => request('PUT', '/settings/connect-tiktok',    { username }),
-    updateProfile:    (full_name) => request('PUT', '/settings/update-profile',    { full_name }),
-    changePassword:   (current_password, new_password) => request('PUT', '/settings/change-password', { current_password, new_password }),
+    connectInstagram:    (username, password) => request('PUT', '/settings/connect-instagram', { username, password }),
+    disconnectInstagram: ()                   => request('PUT', '/settings/disconnect-instagram'),
+    connectTiktok:       (username)           => request('PUT', '/settings/connect-tiktok', { username }),
+    updateProfile:       (full_name)          => request('PUT', '/settings/update-profile', { full_name }),
+    changePassword:      (current_password, new_password) => request('PUT', '/settings/change-password', { current_password, new_password }),
 }
 
 // Scraper
 export const scraperAPI = {
-    setupInstagram: () => request('POST', '/scraper/setup-instagram'),
-    runInstagram:   () => request('POST', '/scraper/run-instagram'),
+    setupInstagram:  () => request('POST', '/scraper/setup-instagram'),
+    runInstagram:    () => request('POST', '/scraper/run-instagram'),
     statusInstagram: () => request('GET',  '/scraper/status-instagram'),
+    setupTiktok:     () => request('POST', '/scraper/setup-tiktok'),
+    runTiktok:       () => request('POST', '/scraper/run-tiktok'),
+    statusTiktok:    () => request('GET',  '/scraper/status-tiktok'),
 }
 
 // Stats
