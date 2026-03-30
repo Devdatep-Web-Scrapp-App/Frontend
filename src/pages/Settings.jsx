@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
-import { settingsAPI, scraperAPI } from '../services/api.js'
+import { settingsAPI, scraperAPI, BASE } from '../services/api.js'
 
-const API = 'http://localhost:8000'
+
 const getToken = () => localStorage.getItem('sp_token')
-const authFetch = (path, opts = {}) => fetch(`${API}${path}`, { ...opts, headers: { 'Authorization': `Bearer ${getToken()}`, 'Content-Type': 'application/json', ...(opts.headers || {}) } })
+const authFetch = (path, opts = {}) => fetch(`${BASE}${path}`, { ...opts, headers: { 'Authorization': `Bearer ${getToken()}`, 'Content-Type': 'application/json', ...(opts.headers || {}) } })
 
 const SECTIONS = [
     { id: 'general',   label: 'General',            icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg> },

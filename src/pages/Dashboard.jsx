@@ -3,7 +3,7 @@ import { format, subDays } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { Users, UserPlus, UserMinus, TrendingUp, Star, Zap, BarChart2, Shield } from 'lucide-react'
 import { StatCard, DateRangePicker } from '../components/ui/index.jsx'
-import { statsAPI } from '../services/api.js'
+import { BASE, statsAPI } from '../services/api.js'
 
 const fmt     = d => format(new Date(d + 'T12:00:00'), 'd MMM yyyy', { locale: es })
 const fmtFull = d => format(new Date(d), 'd MMM yyyy · HH:mm', { locale: es })
@@ -130,7 +130,7 @@ export default function Dashboard() {
     useEffect(() => {
         const token = localStorage.getItem('sp_token')
         if (!token) return
-        fetch('http://localhost:8000/auth/me', { headers: { 'Authorization': `Bearer ${token}` } })
+        fetch(`${BASE}/auth/me`, { headers: { 'Authorization': `Bearer ${token}` } })
             .then(r => r.json())
             .then(user => {
                 if (!user.ig_username) { setLoading(false); return }
