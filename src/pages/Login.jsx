@@ -1,9 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTheme } from '../components/switcher/theme/useTheme.js'
-
-const DEMO_EMAIL    = 'demo@socialpulse.io'
-const DEMO_PASSWORD = 'demo1234'
+import { authAPI } from '../services/api.js'
 
 export default function Login() {
     const navigate = useNavigate()
@@ -15,26 +13,21 @@ export default function Login() {
     const [error, setError]       = useState('')
     const [loading, setLoading]   = useState(false)
 
-    function fillDemo() {
-        setEmail(DEMO_EMAIL)
-        setPassword(DEMO_PASSWORD)
-        setError('')
-    }
-
-    function handleSubmit(e) {
+    async function handleSubmit(e) {
         e.preventDefault()
         setError('')
         if (!email || !password) { setError('Completa todos los campos.'); return }
         setLoading(true)
-        setTimeout(() => {
-            if (email === DEMO_EMAIL && password === DEMO_PASSWORD) {
-                localStorage.setItem('sp_auth', 'true')
-                navigate('/')
-            } else {
-                setError('Credenciales incorrectas.')
-                setLoading(false)
-            }
-        }, 700)
+        try {
+            const data = await authAPI.login(email, password)
+            localStorage.setItem('sp_token', data.access_token)
+            localStorage.setItem('sp_auth', 'true')
+            navigate('/')
+        } catch (err) {
+            setError(err.message || 'Credenciales incorrectas.')
+        } finally {
+            setLoading(false)
+        }
     }
 
     return (
@@ -82,7 +75,7 @@ export default function Login() {
                                 type="email"
                                 value={email}
                                 onChange={e => { setEmail(e.target.value); setError('') }}
-                                placeholder="demo@socialpulse.io"
+                                placeholder="tu@email.com"
                                 autoComplete="email"
                             />
                         </div>
@@ -90,7 +83,6 @@ export default function Login() {
                         <div className="field-group" style={{ marginTop: 14 }}>
                             <div className="field-label-row">
                                 <label className="field-label">Password</label>
-                                <button type="button" className="forgot-btn">Forgot password?</button>
                             </div>
                             <div className="pass-wrapper">
                                 <input
@@ -127,15 +119,6 @@ export default function Login() {
                         </button>
                     </form>
                 </div>
-
-                <div className="demo-card">
-                    <div className="demo-left">
-                        <span className="demo-title">Demo credentials</span>
-                        <span className="demo-value">{DEMO_EMAIL}</span>
-                        <span className="demo-value">{DEMO_PASSWORD}</span>
-                    </div>
-                    <button className="fill-btn" onClick={fillDemo}>Fill in</button>
-                </div>
             </main>
 
             <footer className="login-footer">
@@ -143,226 +126,36 @@ export default function Login() {
             </footer>
 
             <style>{`
-        .login-root {
-          min-height: 100vh;
-          width: 100%;
-          display: flex;
-          flex-direction: column;
-          background: var(--bg-base);
-          transition: background 0.2s;
-        }
-        .login-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 0 28px;
-          height: 52px;
-          border-bottom: 1px solid var(--border);
-        }
-        .login-brand {
-          display: flex;
-          align-items: center;
-          gap: 9px;
-        }
-        .login-brand-icon {
-          width: 28px;
-          height: 28px;
-          background: var(--accent-teal-dim);
-          border-radius: var(--radius-sm);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-        .login-brand-name {
-          font-family: var(--font-display);
-          font-size: 14px;
-          font-weight: 700;
-          color: var(--text-primary);
-          letter-spacing: -0.01em;
-        }
-        .theme-btn {
-          width: 32px;
-          height: 32px;
-          background: var(--bg-elevated);
-          border: 1px solid var(--border);
-          border-radius: var(--radius-md);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: var(--text-secondary);
-          transition: color 0.15s, border-color 0.15s, background 0.2s;
-          cursor: pointer;
-        }
-        .theme-btn:hover {
-          color: var(--text-primary);
-          border-color: var(--text-muted);
-        }
-        .login-main {
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          padding: 40px 16px;
-        }
-        .login-logo {
-          width: 56px;
-          height: 56px;
-          border-radius: 16px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          margin-bottom: 20px;
-          box-shadow: 0 0 0 1px var(--border), 0 8px 24px rgba(247,37,133,0.15);
-          background: var(--bg-card);
-        }
-        .login-title {
-          font-family: var(--font-display);
-          font-size: 22px;
-          font-weight: 700;
-          color: var(--text-primary);
-          letter-spacing: -0.02em;
-          margin-bottom: 6px;
-        }
-        .login-subtitle {
-          font-size: 13px;
-          color: var(--text-secondary);
-          margin-bottom: 28px;
-        }
-        .login-card {
-          width: 100%;
-          max-width: 400px;
-          background: var(--bg-card);
-          border: 1px solid var(--border);
-          border-radius: var(--radius-xl);
-          padding: 28px 28px 24px;
-          margin-bottom: 14px;
-          transition: background 0.2s, border-color 0.2s;
-        }
+        .login-root { min-height: 100vh; width: 100%; display: flex; flex-direction: column; background: var(--bg-base); transition: background 0.2s; }
+        .login-header { display: flex; align-items: center; justify-content: space-between; padding: 0 28px; height: 52px; border-bottom: 1px solid var(--border); }
+        .login-brand { display: flex; align-items: center; gap: 9px; }
+        .login-brand-icon { width: 28px; height: 28px; background: var(--accent-teal-dim); border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; }
+        .login-brand-name { font-family: var(--font-display); font-size: 14px; font-weight: 700; color: var(--text-primary); letter-spacing: -0.01em; }
+        .theme-btn { width: 32px; height: 32px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; color: var(--text-secondary); transition: color 0.15s, border-color 0.15s, background 0.2s; cursor: pointer; }
+        .theme-btn:hover { color: var(--text-primary); border-color: var(--text-muted); }
+        .login-main { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 16px; }
+        .login-logo { width: 56px; height: 56px; border-radius: 16px; display: flex; align-items: center; justify-content: center; margin-bottom: 20px; box-shadow: 0 0 0 1px var(--border), 0 8px 24px rgba(247,37,133,0.15); background: var(--bg-card); }
+        .login-title { font-family: var(--font-display); font-size: 22px; font-weight: 700; color: var(--text-primary); letter-spacing: -0.02em; margin-bottom: 6px; }
+        .login-subtitle { font-size: 13px; color: var(--text-secondary); margin-bottom: 28px; }
+        .login-card { width: 100%; max-width: 400px; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-xl); padding: 28px 28px 24px; margin-bottom: 14px; transition: background 0.2s, border-color 0.2s; }
         .field-group { display: flex; flex-direction: column; gap: 6px; }
         .field-label-row { display: flex; align-items: center; justify-content: space-between; }
         .field-label { font-size: 12.5px; font-weight: 500; color: var(--text-secondary); }
-        .field-input {
-          width: 100%;
-          background: var(--bg-elevated);
-          border: 1px solid var(--border);
-          border-radius: var(--radius-md);
-          padding: 10px 14px;
-          font-size: 14px;
-          color: var(--text-primary);
-          outline: none;
-          transition: border-color 0.15s, box-shadow 0.15s, background 0.2s;
-          font-family: var(--font-body);
-        }
+        .field-input { width: 100%; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 10px 14px; font-size: 14px; color: var(--text-primary); outline: none; transition: border-color 0.15s, box-shadow 0.15s, background 0.2s; font-family: var(--font-body); }
         .field-input::placeholder { color: var(--text-muted); }
-        .field-input:focus {
-          border-color: var(--accent-teal);
-          box-shadow: 0 0 0 3px var(--accent-teal-dim);
-        }
-        .field-input.has-error {
-          border-color: #ef4444;
-          box-shadow: 0 0 0 3px rgba(239,68,68,0.12);
-        }
-        .forgot-btn {
-          font-size: 12px;
-          color: var(--text-secondary);
-          background: none;
-          border: none;
-          cursor: pointer;
-          padding: 0;
-          transition: color 0.15s;
-        }
-        .forgot-btn:hover { color: var(--text-primary); }
+        .field-input:focus { border-color: var(--accent-teal); box-shadow: 0 0 0 3px var(--accent-teal-dim); }
+        .field-input.has-error { border-color: #ef4444; box-shadow: 0 0 0 3px rgba(239,68,68,0.12); }
         .pass-wrapper { position: relative; }
         .pass-wrapper .field-input { padding-right: 40px; }
-        .pass-toggle {
-          position: absolute;
-          right: 12px;
-          top: 50%;
-          transform: translateY(-50%);
-          background: none;
-          border: none;
-          color: var(--text-muted);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          transition: color 0.15s;
-          padding: 0;
-        }
+        .pass-toggle { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-muted); display: flex; align-items: center; justify-content: center; transition: color 0.15s; padding: 0; }
         .pass-toggle:hover { color: var(--text-secondary); }
-        .login-error {
-          margin-top: 12px;
-          padding: 9px 12px;
-          background: rgba(239,68,68,0.1);
-          border: 1px solid rgba(239,68,68,0.25);
-          border-radius: var(--radius-md);
-          font-size: 12.5px;
-          color: #f87171;
-        }
-        .signin-btn {
-          width: 100%;
-          padding: 11px;
-          background: var(--bg-sidebar);
-          color: var(--text-sidebar-active);
-          border: none;
-          border-radius: var(--radius-md);
-          font-size: 14px;
-          font-weight: 600;
-          font-family: var(--font-display);
-          cursor: pointer;
-          transition: opacity 0.15s, transform 0.15s, background 0.2s;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          min-height: 42px;
-        }
+        .login-error { margin-top: 12px; padding: 9px 12px; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.25); border-radius: var(--radius-md); font-size: 12.5px; color: #f87171; }
+        .signin-btn { width: 100%; padding: 11px; background: var(--bg-sidebar); color: var(--text-sidebar-active); border: none; border-radius: var(--radius-md); font-size: 14px; font-weight: 600; font-family: var(--font-display); cursor: pointer; transition: opacity 0.15s, transform 0.15s, background 0.2s; display: flex; align-items: center; justify-content: center; min-height: 42px; }
         .signin-btn:hover:not(:disabled) { opacity: 0.88; transform: translateY(-1px); }
         .signin-btn:disabled { opacity: 0.6; cursor: not-allowed; }
-        .spinner {
-          width: 16px;
-          height: 16px;
-          border: 2px solid rgba(255,255,255,0.25);
-          border-top-color: white;
-          border-radius: 50%;
-          animation: spin 0.6s linear infinite;
-        }
+        .spinner { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.25); border-top-color: white; border-radius: 50%; animation: spin 0.6s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
-        .demo-card {
-          width: 100%;
-          max-width: 400px;
-          background: var(--bg-card);
-          border: 1px dashed var(--border);
-          border-radius: var(--radius-lg);
-          padding: 14px 18px;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 12px;
-          transition: background 0.2s;
-        }
-        .demo-left { display: flex; flex-direction: column; gap: 2px; }
-        .demo-title { font-size: 12px; font-weight: 500; color: var(--text-secondary); margin-bottom: 2px; }
-        .demo-value { font-size: 12px; color: var(--text-muted); font-family: monospace; }
-        .fill-btn {
-          background: var(--bg-elevated);
-          border: 1px solid var(--border);
-          border-radius: var(--radius-md);
-          color: var(--text-primary);
-          font-size: 13px;
-          font-weight: 500;
-          padding: 7px 16px;
-          cursor: pointer;
-          transition: border-color 0.15s, background 0.15s;
-          white-space: nowrap;
-        }
-        .fill-btn:hover { border-color: var(--accent-teal); background: var(--accent-teal-dim); }
-        .login-footer {
-          text-align: center;
-          padding: 16px;
-          font-size: 12px;
-          color: var(--text-muted);
-          border-top: 1px solid var(--border);
-        }
+        .login-footer { text-align: center; padding: 16px; font-size: 12px; color: var(--text-muted); border-top: 1px solid var(--border); }
       `}</style>
         </div>
     )
