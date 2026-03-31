@@ -29,19 +29,22 @@ async function request(method, path, body = null) {
 
 // Auth
 export const authAPI = {
-  login: (email, password) => {
-    const form = new URLSearchParams();
-    form.append("username", email);
-    form.append("password", password);
-    return fetch(`${BASE}/auth/login`, {
+  login: async (email, password) => {
+    const params = new URLSearchParams();
+    params.append("username", email);
+    params.append("password", password);
+
+    const res = await fetch(`${BASE}/auth/login`, {
       method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: form.toString(),
-    }).then(async (res) => {
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || "Error desconocido");
-      return data;
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: params.toString(),
     });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Error al iniciar sesión");
+    return data;
   },
   register: (email, password, full_name) =>
     request("POST", "/auth/register", { email, password, full_name }),

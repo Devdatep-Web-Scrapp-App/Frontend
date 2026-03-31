@@ -1,7 +1,14 @@
 import { useState, useEffect, useMemo } from "react";
 import { format, subDays, addDays } from "date-fns";
 import { es } from "date-fns/locale";
-import { Target, TrendingUp, Calendar, Zap, Shield } from "lucide-react";
+import {
+  Target,
+  TrendingUp,
+  Calendar,
+  Zap,
+  Shield,
+  Instagram,
+} from "lucide-react";
 import {
   AreaChart,
   Area,
@@ -20,8 +27,6 @@ const fmt = (d) => format(new Date(d + "T12:00:00"), "d MMM", { locale: es });
 function computeProjections(followers, lost) {
   const start = format(subDays(new Date(), 30), "yyyy-MM-dd");
   const end = format(new Date(), "yyyy-MM-dd");
-
-  // Filtros para el periodo de 30 días
   const snap = followers.filter(
     (r) =>
       r.scraped_at?.slice(0, 10) >= start && r.scraped_at?.slice(0, 10) <= end,
@@ -35,9 +40,6 @@ function computeProjections(followers, lost) {
 
   const avgDaily = +(netGrowth / 30).toFixed(1);
   const currentTotal = followers.length;
-
-  // TASA DE RETENCIÓN (Misma lógica SQL de Metabase)
-  // ROUND( (total / (total + perdidos)) * 100, 1)
   const retention =
     currentTotal > 0
       ? +((currentTotal / (currentTotal + lost.length)) * 100).toFixed(1)
@@ -54,8 +56,7 @@ function computeProjections(followers, lost) {
 
 function buildForecastChart(followers, lost, kpi) {
   const todayStr = format(new Date(), "yyyy-MM-dd");
-  const start = format(subDays(new Date(), 15), "yyyy-MM-dd"); // Mostrar desde hace 15 días
-
+  const start = format(subDays(new Date(), 15), "yyyy-MM-dd");
   const byDay = {};
   const lostByDay = {};
   followers.forEach((r) => {
@@ -166,6 +167,7 @@ export default function Proyeccion() {
   const [followers, setFollowers] = useState([]);
   const [lost, setLost] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isInstagram, setIsInstagram] = useState(true); // Red social activa
 
   useEffect(() => {
     Promise.all([statsAPI.igFollowers(), statsAPI.igLost()])
@@ -221,7 +223,13 @@ export default function Proyeccion() {
     <div className="proj-page fade-in">
       <div className="proj-header">
         <div>
-          <h1 className="proj-title">Análisis de Proyecciones</h1>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <h1 className="proj-title">Análisis de Proyecciones</h1>
+            <div className="social-badge">
+              {isInstagram ? <Instagram size={18} /> : <span>TikTok</span>}
+              <span>{isInstagram ? "Instagram" : "TikTok"}</span>
+            </div>
+          </div>
           <p className="proj-subtitle">
             Metas calculadas mediante la curva de tendencia actual
           </p>
@@ -263,7 +271,7 @@ export default function Proyeccion() {
                       verticalAlign: "middle",
                       color: "var(--accent-orange)",
                     }}
-                  />
+                  />{" "}
                   Forecast Predictivo
                 </h3>
                 <span
@@ -376,7 +384,6 @@ export default function Proyeccion() {
                   domain={["auto", "auto"]}
                 />
                 <Tooltip content={(props) => <CustomTooltip {...props} />} />
-
                 <ReferenceLine
                   x={fmt(format(new Date(), "yyyy-MM-dd"))}
                   stroke="var(--border)"
@@ -388,7 +395,6 @@ export default function Proyeccion() {
                     fontSize: 11,
                   }}
                 />
-
                 <Area
                   type="monotone"
                   dataKey="Real"
@@ -423,17 +429,17 @@ export default function Proyeccion() {
       )}
 
       <style>{`
-                .proj-page { padding: 32px 40px; width: 100%; max-width: 1400px; margin: 0 auto; }
-                .proj-header { margin-bottom: 32px; }
-                .proj-title { font-family: var(--font-display); font-size: 28px; font-weight: 800; color: var(--text-primary); letter-spacing: -0.02em; }
-                .proj-subtitle { font-size: 14px; color: var(--text-secondary); margin-top: 4px; }
-                .proj-kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 24px; }
-                .proj-state { padding: 80px 0; text-align: center; color: var(--text-secondary); font-size: 15px; font-weight: 500; }
-                
-                @media (max-width: 1100px) { .proj-kpi-grid { grid-template-columns: repeat(2, 1fr); } }
-                @media (max-width: 800px)  { .proj-page { padding: 20px; } }
-                @media (max-width: 500px)  { .proj-kpi-grid { grid-template-columns: 1fr; } }
-            `}</style>
+        .proj-page { padding: 32px 40px; width: 100%; max-width: 1400px; margin: 0 auto; }
+        .proj-header { margin-bottom: 32px; }
+        .proj-title { font-family: var(--font-display); font-size: 28px; font-weight: 800; color: var(--text-primary); letter-spacing: -0.02em; margin: 0; }
+        .proj-subtitle { font-size: 14px; color: var(--text-secondary); margin-top: 4px; }
+        .social-badge { display: flex; align-items: center; gap: 6px; background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%); color: white; padding: 4px 12px; border-radius: var(--radius-full); font-size: 13px; font-weight: 600; font-family: var(--font-display); box-shadow: 0 2px 10px rgba(220, 39, 67, 0.2); }
+        .proj-kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 24px; }
+        .proj-state { padding: 80px 0; text-align: center; color: var(--text-secondary); font-size: 15px; font-weight: 500; }
+        @media (max-width: 1100px) { .proj-kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 800px)  { .proj-page { padding: 20px; } }
+        @media (max-width: 500px)  { .proj-kpi-grid { grid-template-columns: 1fr; } }
+      `}</style>
     </div>
   );
 }

@@ -225,7 +225,7 @@ function GeneralSection() {
           </div>
         </FieldRow>
         <div className="set-divider" />
-        <FieldRow label="Correo electrónico" hint="No editable.">
+        <FieldRow label="Correo electrónico">
           <input
             className="set-input"
             value={email}
@@ -370,7 +370,7 @@ function ConnectModal({ platform, onClose, onSave }) {
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <div>
             <label style={{ fontSize: 12, color: "var(--text-secondary)" }}>
-              Username (sin @)
+              Usuario (sin @)
             </label>
             <input
               className="set-input"
