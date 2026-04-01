@@ -1,7 +1,8 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import Sidebar from './components/layout/sidebar.jsx'
+import Sidebar from './components/layout/Sidebar.jsx'
 import Dashboard from './pages/Dashboard.jsx'
 import Historial from './pages/Historial.jsx'
+import Proyeccion from './pages/Proyeccion.jsx'
 import Login from './pages/Login.jsx'
 import Settings from './pages/Settings.jsx'
 import { useTheme } from './components/switcher/theme/useTheme.js'
@@ -27,10 +28,11 @@ function AuthLayout() {
                 backgroundColor: 'var(--bg-base)',
             }}>
                 <Routes>
-                    <Route path="/"          element={<Dashboard />} />
-                    <Route path="/historial" element={<Historial />} />
-                    <Route path="*"          element={<Navigate to="/" replace />} />
-                    <Route path="/settings" element={<Settings />} />
+                    <Route path="/"            element={<Dashboard />}  />
+                    <Route path="/historial"   element={<Historial />}  />
+                    <Route path="/proyeccion"  element={<Proyeccion />} />
+                    <Route path="/settings"    element={<Settings />}   />
+                    <Route path="*"            element={<Navigate to="/" replace />} />
                 </Routes>
             </main>
         </div>

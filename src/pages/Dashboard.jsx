@@ -1,199 +1,241 @@
-import { useState, useEffect, useMemo } from 'react'
-import { format, subDays } from 'date-fns'
-import { es } from 'date-fns/locale'
-import { Users, UserPlus, UserMinus, TrendingUp, Star, Zap, BarChart2, Shield } from 'lucide-react'
-import { StatCard, DateRangePicker } from '../components/ui/index.jsx'
-import { BASE, statsAPI } from '../services/api.js'
+import { useState, useEffect, useMemo } from "react";
+import { format, subDays } from "date-fns";
+import { es } from "date-fns/locale";
+import { Users, UserPlus, UserMinus, Star, Instagram, Activity, User } from "lucide-react";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { StatCard, DateRangePicker, Card } from "../components/ui/index.jsx";
+import { statsAPI, BASE } from "../services/api.js";
+const fmtTime = (d) => d ? format(new Date(d), "HH:mm") : "—";
+const fmt     = (d) => format(new Date(d + "T12:00:00"), "d MMM", { locale: es });
 
-const fmt     = d => format(new Date(d + 'T12:00:00'), 'd MMM yyyy', { locale: es })
-const fmtFull = d => format(new Date(d), 'd MMM yyyy · HH:mm', { locale: es })
+const getToken  = () => localStorage.getItem("sp_token");
+const authFetch = (path) => fetch(`${BASE}${path}`, { headers: { Authorization: `Bearer ${getToken()}` } });
+
+function Avatar({ str, color }) {
+    const initials = (str || "?").slice(0, 2).toUpperCase();
+    return (
+        <div style={{ width: 36, height: 36, borderRadius: "10px", background: `var(--${color}-dim)`, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 13, color: `var(--${color})`, fontFamily: "var(--font-display)", flexShrink: 0, border: `1px solid var(--${color}-dim)` }}>
+            {initials !== "?" ? initials : <User size={16} />}
+        </div>
+    );
+}
+
+function DailyMonitor({ followers, lost }) {
+    const todayStr = format(new Date(), "yyyy-MM-dd");
+    const [activeTab, setActiveTab] = useState("nuevos");
+    const newToday  = followers.filter((r) => r.scraped_at?.slice(0, 10) === todayStr);
+    const lostToday = lost.filter((r) => r.fecha_perdida?.slice(0, 10) === todayStr);
+    const currentList = activeTab === "nuevos" ? newToday : lostToday;
+    const isNew       = activeTab === "nuevos";
+    const accentColor = isNew ? "accent-teal" : "accent-pink";
+
+    return (
+        <Card style={{ padding: 0, overflow: "hidden", border: `1px solid var(--${accentColor}-dim)` }}>
+            <div className="daily-header" style={{ background: `linear-gradient(to right, var(--bg-card), var(--${accentColor}-dim))` }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, paddingRight: 16, borderRight: `2px solid var(--${accentColor})` }}>
+                        <Activity size={20} color={`var(--${accentColor})`} />
+                        <span style={{ fontWeight: 800, fontSize: 16, color: "var(--text-primary)" }}>Monitor Diario</span>
+                    </div>
+                    <div className="daily-tabs">
+                        <button className={`daily-tab ${isNew ? "active-teal" : ""}`} onClick={() => setActiveTab("nuevos")}>
+                            <UserPlus size={15} /> Recientes <span className="daily-badge teal">{newToday.length}</span>
+                        </button>
+                        <button className={`daily-tab ${!isNew ? "active-pink" : ""}`} onClick={() => setActiveTab("perdidos")}>
+                            <UserMinus size={15} /> Bajas <span className="daily-badge pink">{lostToday.length}</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div className="feed-container" style={{ maxHeight: "350px", overflowY: "auto", padding: "16px 24px", background: "var(--bg-base)" }}>
+                {currentList.length === 0 ? (
+                    <div className="hist-empty" style={{ background: "var(--bg-card)", borderRadius: "var(--radius-lg)" }}>
+                        <Activity size={32} color="var(--border)" style={{ marginBottom: 12 }} /><br />
+                        No hay movimientos registrados para el día de hoy.
+                    </div>
+                ) : (
+                    <div className="feed-list">
+                        {currentList.map((u, i) => (
+                            <div key={i} className="feed-item fade-in" style={{ borderLeft: `3px solid var(--${accentColor})` }}>
+                                <Avatar str={u.username} color={accentColor} />
+                                <div className="feed-info">
+                                    <div className="feed-name">{u.full_name || "Usuario sin nombre"}</div>
+                                    <div className="feed-user">@{u.username}</div>
+                                </div>
+                                <div className="feed-meta">
+                                    <div className="feed-badge" style={{ color: `var(--${accentColor})`, background: `var(--${accentColor}-dim)` }}>
+                                        {isNew ? "+ Nuevo" : "- Perdido"}
+                                    </div>
+                                    <div className="feed-time">{fmtTime(isNew ? u.scraped_at : u.fecha_perdida)}</div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+        </Card>
+    );
+}
 
 function computeKPIs(followers, lost, start, end) {
-    const snap  = followers.filter(r => r.scraped_at?.slice(0, 10) >= start && r.scraped_at?.slice(0, 10) <= end)
-    const lostF = lost.filter(r => r.fecha_perdida?.slice(0, 10) >= start && r.fecha_perdida?.slice(0, 10) <= end)
-    const total = followers.length
-    const byDay = {}
-    followers.forEach(r => { const d = r.scraped_at?.slice(0, 10); if (d) byDay[d] = (byDay[d] || 0) + 1 })
-    const bestDay   = Object.entries(byDay).sort((a, b) => b[1] - a[1])[0]
-    const days      = Object.values(byDay)
-    const avgDaily  = days.length ? +(days.reduce((a, b) => a + b, 0) / days.length).toFixed(1) : 0
-    const retention = total > 0 ? +((total / (total + lost.length)) * 100).toFixed(1) : 0
-    return { totalFollowers: total, newFollowers: snap.length, lostFollowers: lostF.length, netGrowth: snap.length - lostF.length, bestDay: bestDay ? bestDay[0] : null, bestDayPeak: bestDay ? bestDay[1] : 0, avgDaily, retention }
+    const snap  = followers.filter((r) => r.scraped_at?.slice(0, 10) >= start && r.scraped_at?.slice(0, 10) <= end);
+    const lostF = lost.filter((r) => r.fecha_perdida?.slice(0, 10) >= start && r.fecha_perdida?.slice(0, 10) <= end);
+    const byDay = {};
+    snap.forEach((r) => { const d = r.scraped_at?.slice(0, 10); if (d) byDay[d] = (byDay[d] || 0) + 1; });
+    const bestDayEntry = Object.entries(byDay).sort((a, b) => b[1] - a[1])[0];
+    return {
+        totalFollowers: followers.length,
+        newFollowers:   snap.length,
+        lostFollowers:  lostF.length,
+        bestDayStr:     bestDayEntry ? fmt(bestDayEntry[0]) : "—",
+        bestDayPeak:    bestDayEntry ? bestDayEntry[1] : 0,
+    };
 }
 
-function Avatar({ name, username, size = 36 }) {
-    const str      = name || username || '?'
-    const initials = str.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
-    const colors   = ['#06b6d4', '#f59e0b', '#f43f5e', '#7c3aed', '#10b981', '#3b82f6']
-    const color    = colors[(str.charCodeAt(0) || 0) % colors.length]
-    return (
-        <div style={{ width: size, height: size, borderRadius: '50%', background: color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: size * 0.35, color: 'white', flexShrink: 0, fontFamily: 'var(--font-display)' }}>
-            {initials}
-        </div>
-    )
+function buildChartData(followers, lost, start, end) {
+    const byDay = {}, lostByDay = {};
+    followers.forEach((r) => { const d = r.scraped_at?.slice(0, 10); if (d) byDay[d] = (byDay[d] || 0) + 1; });
+    lost.forEach((r) => { const d = r.fecha_perdida?.slice(0, 10); if (d) lostByDay[d] = (lostByDay[d] || 0) + 1; });
+    const allDates = [...new Set([...Object.keys(byDay), ...Object.keys(lostByDay)])].sort();
+    let running = 0;
+    return allDates
+        .map((date) => { running += (byDay[date] || 0) - (lostByDay[date] || 0); return { fecha: date, label: fmt(date), Seguidores: running }; })
+        .filter((r) => r.fecha >= start && r.fecha <= end);
 }
 
-function ActivityRow({ item, type }) {
-    const isNew   = type === 'new'
-    const dateStr = isNew ? item.scraped_at : item.fecha_perdida
+function CustomTooltip({ active, payload, label }) {
+    if (!active || !payload?.length) return null;
     return (
-        <div className="act-row">
-            <Avatar name={item.full_name} username={item.username} />
-            <div className="act-info">
-                <span className="act-name">{item.full_name || item.username}</span>
-                <span className="act-user">@{item.username}</span>
-            </div>
-            <div className="act-right">
-                <span className={`act-badge ${isNew ? 'new' : 'lost'}`}>{isNew ? '+ Nuevo' : '− Perdido'}</span>
-                <span className="act-date">{dateStr ? fmtFull(dateStr) : '—'}</span>
+        <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: "var(--radius-md)", padding: "12px 16px", fontSize: "13px" }}>
+            <div style={{ color: "var(--text-secondary)", marginBottom: 6 }}>{label}</div>
+            <div style={{ color: "var(--accent-teal)", display: "flex", gap: 8, alignItems: "center" }}>
+                <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--accent-teal)" }} />
+                <span>Seguidores:</span>
+                <strong>{payload[0].value?.toLocaleString()}</strong>
             </div>
         </div>
-    )
-}
-
-function DailyActivity({ followers, lost }) {
-    const todayStr  = format(new Date(), 'yyyy-MM-dd')
-    const [tab, setTab] = useState('new')
-    const newToday  = followers.filter(r => r.scraped_at?.slice(0, 10) === todayStr)
-    const lostToday = lost.filter(r => r.fecha_perdida?.slice(0, 10) === todayStr)
-    const list      = tab === 'new' ? newToday : lostToday
-
-    return (
-        <div className="act-card">
-            <div className="act-header">
-                <div>
-                    <div className="act-title">Actividad de hoy</div>
-                    <div className="act-sub">{fmt(todayStr)}</div>
-                </div>
-                <div className="act-tabs">
-                    <button className={`act-tab ${tab === 'new' ? 'active' : ''}`} onClick={() => setTab('new')}>
-                        <UserPlus size={13} /> Nuevos <span className="act-count">{newToday.length}</span>
-                    </button>
-                    <button className={`act-tab ${tab === 'lost' ? 'active lost' : ''}`} onClick={() => setTab('lost')}>
-                        <UserMinus size={13} /> Perdidos <span className="act-count">{lostToday.length}</span>
-                    </button>
-                </div>
-            </div>
-
-            {list.length === 0 ? (
-                <div className="act-empty">
-                    {tab === 'new' ? 'No hay nuevos seguidores hoy.' : 'No se perdieron seguidores hoy.'}
-                </div>
-            ) : (
-                <div className="act-list">
-                    {list.map((item, i) => (
-                        <div key={i}>
-                            {i > 0 && <div className="act-divider" />}
-                            <ActivityRow item={item} type={tab} />
-                        </div>
-                    ))}
-                </div>
-            )}
-
-            <style>{`
-                .act-card { background: var(--bg-card); border-radius: var(--radius-lg); box-shadow: var(--shadow-card); overflow: hidden; margin-top: 20px; }
-                .act-header { display: flex; align-items: center; justify-content: space-between; padding: 18px 22px 14px; flex-wrap: wrap; gap: 12px; border-bottom: 1px solid var(--border); }
-                .act-title { font-family: var(--font-display); font-size: 14px; font-weight: 700; color: var(--text-primary); }
-                .act-sub { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
-                .act-tabs { display: flex; gap: 6px; }
-                .act-tab { display: flex; align-items: center; gap: 5px; padding: 6px 12px; border-radius: var(--radius-md); border: 1px solid var(--border); background: var(--bg-elevated); color: var(--text-secondary); font-size: 12px; font-weight: 500; font-family: var(--font-body); cursor: pointer; transition: all 0.15s; }
-                .act-tab:hover { border-color: var(--accent-teal); color: var(--text-primary); }
-                .act-tab.active { background: var(--accent-teal-dim); border-color: var(--accent-teal); color: var(--accent-teal); }
-                .act-tab.active.lost { background: var(--accent-pink-dim); border-color: var(--accent-pink); color: var(--accent-pink); }
-                .act-count { background: var(--bg-card); border-radius: 20px; padding: 1px 6px; font-size: 11px; font-weight: 700; }
-                .act-list { max-height: 360px; overflow-y: auto; }
-                .act-row { display: flex; align-items: center; gap: 12px; padding: 12px 22px; }
-                .act-divider { height: 1px; background: var(--border); margin: 0 22px; }
-                .act-info { flex: 1; min-width: 0; }
-                .act-name { display: block; font-size: 13px; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-                .act-user { display: block; font-size: 12px; color: var(--text-secondary); margin-top: 1px; }
-                .act-right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
-                .act-badge { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px; }
-                .act-badge.new  { background: var(--accent-teal-dim); color: var(--accent-teal); }
-                .act-badge.lost { background: var(--accent-pink-dim); color: var(--accent-pink); }
-                .act-date { font-size: 11px; color: var(--text-muted); }
-                .act-empty { padding: 32px 22px; text-align: center; color: var(--text-muted); font-size: 13px; }
-            `}</style>
-        </div>
-    )
+    );
 }
 
 export default function Dashboard() {
-    const todayStr  = format(new Date(), 'yyyy-MM-dd')
-    const [start, setStart] = useState(format(subDays(new Date(), 90), 'yyyy-MM-dd'))
-    const [end, setEnd]     = useState(todayStr)
-    const [followers, setFollowers] = useState([])
-    const [lost, setLost]           = useState([])
-    const [loading, setLoading]     = useState(true)
-    const [error, setError]         = useState(null)
+    const todayStr = format(new Date(), "yyyy-MM-dd");
+    const [start, setStart]       = useState(format(subDays(new Date(), 30), "yyyy-MM-dd"));
+    const [end, setEnd]           = useState(todayStr);
+    const [followers, setFollowers] = useState([]);
+    const [lost, setLost]           = useState([]);
+    const [loading, setLoading]     = useState(true);
+    const [noAccount, setNoAccount] = useState(false);
 
     useEffect(() => {
-        const token = localStorage.getItem('sp_token')
-        if (!token) return
-        fetch(`${BASE}/auth/me`, { headers: { 'Authorization': `Bearer ${token}` } })
-            .then(r => r.json())
-            .then(user => {
-                if (!user.ig_username) { setLoading(false); return }
+        authFetch("/auth/me")
+            .then((r) => r.json())
+            .then((user) => {
+                if (!user.ig_username) { setNoAccount(true); setLoading(false); return; }
                 return Promise.all([statsAPI.igFollowers(), statsAPI.igLost()])
-                    .then(([f, l]) => { setFollowers(f); setLost(l) })
-                    .catch(e => setError(e.message))
+                    .then(([f, l]) => { setFollowers(f); setLost(l); });
             })
-            .finally(() => setLoading(false))
-    }, [])
+            .catch(() => setNoAccount(true))
+            .finally(() => setLoading(false));
+    }, []);
 
-    const kpi = useMemo(() => computeKPIs(followers, lost, start, end), [followers, lost, start, end])
+    const kpi       = useMemo(() => computeKPIs(followers, lost, start, end), [followers, lost, start, end]);
+    const chartData = useMemo(() => buildChartData(followers, lost, start, end), [followers, lost, start, end]);
 
     const cards = [
-        { label: 'Seguidores actuales',  value: kpi.totalFollowers.toLocaleString(),                               accent: 'teal',   icon: Users,     sub: 'total acumulado'           },
-        { label: 'Nuevos Seguidores',    value: `+${kpi.newFollowers.toLocaleString()}`,                           accent: 'orange', icon: UserPlus,  sub: 'en el rango'               },
-        { label: 'Seguidores Perdidos',  value: `-${kpi.lostFollowers.toLocaleString()}`,                          accent: 'pink',   icon: UserMinus, sub: 'en el rango'               },
-        { label: 'Crecimiento Neto',     value: (kpi.netGrowth >= 0 ? '+' : '') + kpi.netGrowth.toLocaleString(), accent: kpi.netGrowth >= 0 ? 'teal' : 'red', icon: TrendingUp, sub: 'nuevos - perdidos' },
-        { label: 'Mejor Dia',            value: kpi.bestDay ? fmt(kpi.bestDay) : '—',                             accent: 'orange', icon: Star,      sub: ''                          },
-        { label: 'Pico de Seguidores',   value: kpi.bestDayPeak.toLocaleString(),                                  accent: 'orange', icon: Zap,       sub: 'en un solo día'            },
-        { label: 'Promedio Diario',      value: kpi.avgDaily.toLocaleString(),                                     accent: 'purple', icon: BarChart2, sub: 'nuevos por día'            },
-        { label: 'Tasa de Retención',    value: `${kpi.retention}%`,                                              accent: kpi.retention >= 80 ? 'teal' : kpi.retention >= 60 ? 'orange' : 'pink', icon: Shield, sub: 'seguidores que se quedan' },
-    ]
+        { label: "Comunidad Actual",    value: kpi.totalFollowers.toLocaleString(), accent: "purple", icon: Users,     sub: "Total acumulado"    },
+        { label: "Nuevos Seguidores",   value: `+${kpi.newFollowers.toLocaleString()}`, accent: "teal",   icon: UserPlus, sub: "En el periodo"  },
+        { label: "Seguidores Perdidos", value: `-${kpi.lostFollowers.toLocaleString()}`, accent: "pink",  icon: UserMinus, sub: "En el periodo"  },
+        { label: "Mejor Día",           value: kpi.bestDayStr, accent: "orange", icon: Star, sub: `Pico de +${kpi.bestDayPeak}`                  },
+    ];
 
     return (
         <div className="dash-page fade-in">
             <div className="dash-header">
                 <div>
-                    <h1 className="dash-title">Analytics Dashboard</h1>
-                    <p className="dash-subtitle">Seguimiento de crecimiento en Instagram</p>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                        <h1 className="dash-title">Dashboard</h1>
+                        <div className="social-badge"><Instagram size={18} /><span>Instagram</span></div>
+                    </div>
+                    <p className="dash-subtitle">Rendimiento visual de tu comunidad</p>
                 </div>
                 <DateRangePicker start={start} end={end} onChangeStart={setStart} onChangeEnd={setEnd} />
             </div>
 
-            {loading && <div className="dash-state">Cargando datos...</div>}
-            {error   && <div className="dash-state dash-error">Error: {error}</div>}
+            {loading && <div className="dash-state">Cargando gráficos...</div>}
 
-            {!loading && !error && followers.length === 0 && (
-                <div className="dash-empty">
-                    <p>Aún no hay datos de seguidores.</p>
-                    <p>Ve a <strong>Settings → Cuentas conectadas</strong> y conecta tu Instagram para empezar.</p>
+            {!loading && noAccount && (
+                <div className="dash-state">
+                    <p>No tienes una cuenta de Instagram conectada.</p>
+                    <p>Ve a <strong>Settings → Cuentas conectadas</strong> para configurarla.</p>
                 </div>
             )}
 
-            {!loading && !error && followers.length > 0 && <>
-                <div className="dash-kpi-grid">
-                    {cards.map((c, i) => <StatCard key={i} {...c} />)}
-                </div>
-                <DailyActivity followers={followers} lost={lost} />
-            </>}
+            {!loading && !noAccount && followers.length === 0 && (
+                <div className="dash-state">Aún no hay datos. Ejecuta el primer sync desde Settings.</div>
+            )}
+
+            {!loading && !noAccount && followers.length > 0 && (
+                <>
+                    <div className="dash-kpi-grid">
+                        {cards.map((c, i) => <StatCard key={i} {...c} />)}
+                    </div>
+                    <div className="dash-content-grid">
+                        <Card style={{ padding: "24px" }}>
+                            <div style={{ marginBottom: "24px" }}>
+                                <h3 style={{ fontFamily: "var(--font-display)", fontSize: "18px", fontWeight: 700 }}>Evolución de Seguidores</h3>
+                            </div>
+                            <ResponsiveContainer width="100%" height={340}>
+                                <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                    <defs>
+                                        <linearGradient id="gradTeal" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%"  stopColor="var(--accent-teal)" stopOpacity={0.3} />
+                                            <stop offset="95%" stopColor="var(--accent-teal)" stopOpacity={0.0} />
+                                        </linearGradient>
+                                    </defs>
+                                    <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />
+                                    <XAxis dataKey="label" tick={{ fill: "var(--text-muted)", fontSize: 11 }} axisLine={false} tickLine={false} minTickGap={20} />
+                                    <YAxis tick={{ fill: "var(--text-muted)", fontSize: 11 }} axisLine={false} tickLine={false} />
+                                    <Tooltip content={(props) => <CustomTooltip {...props} />} />
+                                    <Area type="monotone" dataKey="Seguidores" stroke="var(--accent-teal)" strokeWidth={3} fill="url(#gradTeal)" activeDot={{ r: 6, fill: "#06b6d4", stroke: "var(--bg-card)", strokeWidth: 3 }} />
+                                </AreaChart>
+                            </ResponsiveContainer>
+                        </Card>
+                        <div style={{ marginTop: "24px" }}>
+                            <DailyMonitor followers={followers} lost={lost} />
+                        </div>
+                    </div>
+                </>
+            )}
 
             <style>{`
-                .dash-page { padding: 28px 32px 48px; width: 100%; max-width: 1100px; box-sizing: border-box; }
-                .dash-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 28px; gap: 16px; flex-wrap: wrap; }
-                .dash-title { font-family: var(--font-display); font-size: 24px; font-weight: 800; letter-spacing: -0.02em; color: var(--text-primary); }
-                .dash-subtitle { font-size: 13px; color: var(--text-secondary); margin-top: 4px; }
-                .dash-kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; width: 100%; }
-                .dash-state { color: var(--text-secondary); font-size: 14px; padding: 40px 0; }
-                .dash-error { color: #f87171; }
-                .dash-empty { background: var(--bg-card); border: 1px dashed var(--border); border-radius: var(--radius-lg); padding: 40px 32px; color: var(--text-secondary); font-size: 14px; line-height: 1.8; }
-                @media (max-width: 1100px) { .dash-kpi-grid { grid-template-columns: repeat(2, 1fr); } }
-                @media (max-width: 800px)  { .dash-page { padding: 16px; } }
-                @media (max-width: 500px)  { .dash-kpi-grid { grid-template-columns: 1fr; } }
-            `}</style>
+        .dash-page { padding: 32px 40px; width: 100%; max-width: 1400px; margin: 0 auto; }
+        .dash-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px; flex-wrap: wrap; gap: 16px; }
+        .dash-title { font-family: var(--font-display); font-size: 28px; font-weight: 800; color: var(--text-primary); margin: 0; }
+        .dash-subtitle { font-size: 14px; color: var(--text-secondary); margin-top: 6px; }
+        .social-badge { display: flex; align-items: center; gap: 6px; background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%); color: white; padding: 4px 12px; border-radius: var(--radius-full); font-size: 13px; font-weight: 600; font-family: var(--font-display); box-shadow: 0 2px 10px rgba(220,39,67,0.2); }
+        .dash-kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 24px; }
+        .dash-state { padding: 80px 0; text-align: center; color: var(--text-secondary); font-size: 15px; font-weight: 500; line-height: 2; }
+        .daily-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 24px; border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 12px; }
+        .daily-tabs { display: flex; gap: 8px; }
+        .daily-tab { display: flex; align-items: center; gap: 8px; padding: 8px 16px; border: none; background: var(--bg-card); color: var(--text-secondary); font-size: 13.5px; font-weight: 700; cursor: pointer; border-radius: var(--radius-full); transition: all 0.2s; box-shadow: var(--shadow-card); }
+        .daily-tab:hover { transform: translateY(-1px); }
+        .daily-tab.active-teal { background: var(--accent-teal); color: white; }
+        .daily-tab.active-pink { background: var(--accent-pink); color: white; }
+        .daily-badge { padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 800; background: rgba(255,255,255,0.2); color: white; }
+        .feed-list { display: flex; flex-direction: column; gap: 12px; }
+        .feed-item { display: flex; align-items: center; gap: 16px; background: var(--bg-card); padding: 16px 20px; border-radius: var(--radius-lg); box-shadow: var(--shadow-card); transition: transform 0.15s, box-shadow 0.15s; }
+        .feed-item:hover { transform: translateX(4px); box-shadow: var(--shadow-elevated); }
+        .feed-info { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+        .feed-name { font-size: 14.5px; font-weight: 700; color: var(--text-primary); }
+        .feed-user { font-size: 12.5px; color: var(--text-secondary); font-family: monospace; letter-spacing: 0.5px; }
+        .feed-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+        .feed-badge { font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: var(--radius-full); text-transform: uppercase; letter-spacing: 0.5px; }
+        .feed-time { font-size: 12px; color: var(--text-muted); font-family: monospace; font-weight: 600; }
+        .hist-empty { padding: 60px !important; text-align: center; color: var(--text-muted); font-size: 14px; font-weight: 500; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        @media (max-width: 1024px) { .dash-kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 600px)  { .dash-kpi-grid { grid-template-columns: 1fr; } .dash-page { padding: 20px; } }
+      `}</style>
         </div>
-    )
+    );
 }
